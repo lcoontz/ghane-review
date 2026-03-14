@@ -161,6 +161,16 @@ table.items-table .item-name:hover{color:#4f46e5}
 .toast.show{opacity:1}
 
 .empty{color:var(--text-muted)}
+
+/* INLINE EDIT */
+.editable{cursor:pointer;position:relative;padding-right:20px;border-radius:4px;transition:background .15s}
+.editable:hover{background:var(--blue-bg)}
+.edit-icon{position:absolute;right:2px;top:50%;transform:translateY(-50%);opacity:0;transition:opacity .15s;color:var(--text-muted)}
+.editable:hover .edit-icon{opacity:1}
+.inline-edit{width:100%;padding:6px 8px;border:2px solid #818cf8;border-radius:var(--radius-sm);font-size:inherit;font-family:var(--font);outline:none;background:var(--surface);color:var(--text);resize:vertical}
+.inline-edit:focus{box-shadow:0 0 0 3px rgba(99,102,241,.15)}
+.modal-header .editable{display:inline}
+.modal-header .editable:hover{background:var(--blue-bg)}
 </style>
 </head>
 <body>
@@ -222,6 +232,64 @@ ITEMS.forEach(i => { decisions[i.row_id] = i.review_status === 'valid' ? 'includ
 // Track original decisions to detect changes
 const originalDecisions = {};
 ITEMS.forEach(i => { originalDecisions[i.row_id] = decisions[i.row_id]; });
+
+// Track field edits — key = row_id, value = {field: newValue, ...}
+const edits = {};
+
+function getField(item, field) {
+  const e = edits[item.row_id];
+  if (e && e[field] !== undefined && e[field] !== null) return e[field];
+  return item[field];
+}
+
+const PENCIL_SVG = '<svg class="edit-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+
+function editableHTML(rowId, field, value, isTextarea, inputType, extraStyle) {
+  const display = value || '<span class="empty">&mdash;</span>';
+  return `<div class="val editable" style="${extraStyle||''}" onclick="startEdit(this,'${rowId}','${field}',${!!isTextarea},'${inputType||'text'}')">${display}${PENCIL_SVG}</div>`;
+}
+
+function startEdit(el, rowId, field, isTextarea, inputType) {
+  if (el.querySelector('.inline-edit')) return;
+  const item = ITEMS.find(i => i.row_id === rowId);
+  const current = getField(item, field);
+  const input = document.createElement(isTextarea ? 'textarea' : 'input');
+  input.className = 'inline-edit';
+  input.value = current || '';
+  if (!isTextarea) input.type = inputType || 'text';
+  if (isTextarea) input.rows = 3;
+  if (inputType === 'number') { input.step = '0.01'; input.min = '0'; }
+  el.innerHTML = '';
+  el.style.padding = '0';
+  el.appendChild(input);
+  input.focus();
+  if (!isTextarea) input.select();
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    let val = input.value.trim();
+    if (field === 'price') val = parseFloat(val) || 0;
+    finishEdit(rowId, field, val);
+    openModal(rowId);
+  };
+  input.addEventListener('blur', finish);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !isTextarea) { e.preventDefault(); finish(); }
+    if (e.key === 'Escape') { done = true; openModal(rowId); }
+  });
+}
+
+function finishEdit(rowId, field, value) {
+  if (!edits[rowId]) edits[rowId] = {};
+  edits[rowId][field] = value;
+  const item = ITEMS.find(i => i.row_id === rowId);
+  if (item) item[field] = value;
+  persistToLocalStorage();
+  saveToSupabase(rowId, decisions[rowId]);
+  render();
+  renderStats();
+}
 
 let filteredItems = [...ITEMS];
 let currentView = 'gallery';
@@ -488,12 +556,12 @@ function openModal(rowId) {
   const dec = getDecision(item.row_id);
   const priceStr = formatPrice(item.price);
   const purchaseHTML = item.purchase_link && item.purchase_link.startsWith('http')
-    ? `<a href="${item.purchase_link}" target="_blank" style="color:var(--blue);text-decoration:none">${item.purchase_link}</a>`
-    : (item.purchase_link || '<span class="empty">—</span>');
+    ? `<a href="${item.purchase_link}" target="_blank" onclick="event.stopPropagation()" style="color:var(--blue);text-decoration:none;word-break:break-all">${item.purchase_link}</a>`
+    : (item.purchase_link || '');
 
   document.getElementById('modal').innerHTML = `
     <div class="modal-header">
-      <h2>${item.item||'Untitled'} <span style="font-weight:400;color:var(--text-muted);font-size:14px">#${item.row_id}</span></h2>
+      <h2><span class="editable" onclick="startEdit(this,'${item.row_id}','item',false,'text')">${item.item||'Untitled'}${PENCIL_SVG}</span> <span style="font-weight:400;color:var(--text-muted);font-size:14px">#${item.row_id}</span></h2>
       <button class="modal-close" onclick="closeModal()">&times;</button>
     </div>
     <div class="modal-images">
@@ -507,10 +575,10 @@ function openModal(rowId) {
       </div>
     </div>
     <div class="modal-grid">
-      <div class="modal-field full"><label>Description</label><div class="val">${item.item_description||'<span class="empty">—</span>'}</div></div>
-      <div class="modal-field"><label>Price</label><div class="val" style="font-weight:700;${item.price > 0 ? 'color:var(--green)' : 'color:var(--text-muted)'}">${priceStr}</div></div>
-      <div class="modal-field"><label>Product Name</label><div class="val">${item.product_name||'<span class="empty">—</span>'}</div></div>
-      <div class="modal-field full"><label>Purchase Link</label><div class="val" style="font-size:12px;word-break:break-all">${purchaseHTML}</div></div>
+      <div class="modal-field full"><label>Description</label>${editableHTML(item.row_id,'item_description',item.item_description||'',true,'text','')}</div>
+      <div class="modal-field"><label>Price</label>${editableHTML(item.row_id,'price',priceStr,false,'number','font-weight:700;'+(item.price > 0 ? 'color:var(--green)' : 'color:var(--text-muted)'))}</div>
+      <div class="modal-field"><label>Product Name</label>${editableHTML(item.row_id,'product_name',item.product_name||'',false,'text','')}</div>
+      <div class="modal-field full"><label>Purchase Link</label>${editableHTML(item.row_id,'purchase_link',purchaseHTML,false,'url','font-size:12px;word-break:break-all')}</div>
       <div class="modal-field"><label>Brand</label><div class="val">${item.brand||'<span class="empty">—</span>'}</div></div>
       <div class="modal-field"><label>Type</label><div class="val">${item.object_type||'<span class="empty">—</span>'}</div></div>
       <div class="modal-field"><label>Room</label><div class="val">${item._room||'<span class="empty">—</span>'}</div></div>
@@ -549,16 +617,28 @@ document.getElementById('sortSelect').addEventListener('change', applyFilters);
 // localStorage persistence (fallback)
 const LS_KEY = 'ghane_supplement_review_decisions';
 function persistToLocalStorage() {
-  try { localStorage.setItem(LS_KEY, JSON.stringify(decisions)); } catch(e) {}
+  try { localStorage.setItem(LS_KEY, JSON.stringify({decisions, edits})); } catch(e) {}
 }
 function loadFromLocalStorage() {
   try {
     const saved = localStorage.getItem(LS_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
-      for (const [rowId, dec] of Object.entries(parsed)) {
+      const decs = parsed.decisions || parsed;
+      for (const [rowId, dec] of Object.entries(decs)) {
         if (decisions.hasOwnProperty(rowId) && (dec === 'include' || dec === 'exclude')) {
           decisions[rowId] = dec;
+        }
+      }
+      if (parsed.edits) {
+        for (const [rowId, fieldEdits] of Object.entries(parsed.edits)) {
+          edits[rowId] = fieldEdits;
+          const item = ITEMS.find(i => i.row_id === rowId);
+          if (item) {
+            for (const [field, val] of Object.entries(fieldEdits)) {
+              item[field] = val;
+            }
+          }
         }
       }
     }
@@ -575,6 +655,7 @@ async function saveToSupabase(rowId, dec) {
       row_id: rowId,
       decision: dec,
       review_status: dec === 'include' ? 'valid' : 'wrong detection',
+      edits: edits[rowId] || null,
       updated_at: new Date().toISOString()
     }, { onConflict: 'row_id' });
     if (error) {
@@ -595,7 +676,7 @@ async function saveToSupabase(rowId, dec) {
 
 async function loadFromSupabase() {
   try {
-    const { data, error } = await sb.from(TABLE).select('row_id, decision');
+    const { data, error } = await sb.from(TABLE).select('row_id, decision, edits');
     if (error) { console.warn('Supabase load error:', error); return false; }
     if (data && data.length > 0) {
       let applied = 0;
@@ -603,6 +684,15 @@ async function loadFromSupabase() {
         if (decisions.hasOwnProperty(row.row_id) && (row.decision === 'include' || row.decision === 'exclude')) {
           decisions[row.row_id] = row.decision;
           applied++;
+        }
+        if (row.edits && typeof row.edits === 'object') {
+          edits[row.row_id] = row.edits;
+          const item = ITEMS.find(i => i.row_id === row.row_id);
+          if (item) {
+            for (const [field, val] of Object.entries(row.edits)) {
+              item[field] = val;
+            }
+          }
         }
       }
       if (applied > 0) {
