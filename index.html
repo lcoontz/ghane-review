@@ -186,6 +186,13 @@ table.items-table .item-name:hover{color:#4f46e5}
     <option value="include">Included</option>
     <option value="exclude">Excluded</option>
   </select>
+  <select class="filter-select" id="sortSelect">
+    <option value="price-desc">Price: High to Low</option>
+    <option value="price-asc">Price: Low to High</option>
+    <option value="name-asc">Name: A to Z</option>
+    <option value="name-desc">Name: Z to A</option>
+    <option value="room">Room</option>
+  </select>
   <div class="toolbar-right">
     <span class="page-info" id="pageInfo"></span>
     <button class="view-btn" id="btnTable" onclick="setView('table')">Table</button>
@@ -349,6 +356,7 @@ function applyFilters() {
   const room = document.getElementById('roomFilter').value;
   const type = document.getElementById('typeFilter').value;
   const decFilter = document.getElementById('decisionFilter').value;
+  const sort = document.getElementById('sortSelect').value;
 
   filteredItems = ITEMS.filter(i => {
     if (q && !(i.item||'').toLowerCase().includes(q) && !(i.brand||'').toLowerCase().includes(q) && !(i.item_description||'').toLowerCase().includes(q) && !(i.row_id||'').includes(q) && !(i.product_name||'').toLowerCase().includes(q)) return false;
@@ -362,6 +370,19 @@ function applyFilters() {
 
     return true;
   });
+
+  // Sort
+  filteredItems.sort((a, b) => {
+    switch(sort) {
+      case 'price-desc': return (b.price||0) - (a.price||0);
+      case 'price-asc': return (a.price||0) - (b.price||0);
+      case 'name-asc': return (a.item||'').localeCompare(b.item||'');
+      case 'name-desc': return (b.item||'').localeCompare(a.item||'');
+      case 'room': return (a._room||'').localeCompare(b._room||'') || (b.price||0) - (a.price||0);
+      default: return 0;
+    }
+  });
+
   currentPage = 1; render();
 }
 
@@ -523,6 +544,7 @@ document.getElementById('searchInput').addEventListener('input', applyFilters);
 document.getElementById('roomFilter').addEventListener('change', applyFilters);
 document.getElementById('typeFilter').addEventListener('change', applyFilters);
 document.getElementById('decisionFilter').addEventListener('change', applyFilters);
+document.getElementById('sortSelect').addEventListener('change', applyFilters);
 
 // localStorage persistence (fallback)
 const LS_KEY = 'ghane_supplement_review_decisions';
