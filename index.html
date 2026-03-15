@@ -270,6 +270,7 @@ function startEdit(el, rowId, field, isTextarea, inputType) {
     done = true;
     let val = input.value.trim();
     if (field === 'price') val = parseFloat(val) || 0;
+    if (field === 'quantity') val = parseInt(val) || 1;
     finishEdit(rowId, field, val);
     openModal(rowId);
   };
@@ -582,7 +583,7 @@ function openModal(rowId) {
       <div class="modal-field"><label>Brand</label><div class="val">${item.brand||'<span class="empty">—</span>'}</div></div>
       <div class="modal-field"><label>Type</label><div class="val">${item.object_type||'<span class="empty">—</span>'}</div></div>
       <div class="modal-field"><label>Room</label><div class="val">${item._room||'<span class="empty">—</span>'}</div></div>
-      <div class="modal-field"><label>Quantity</label><div class="val">${item.quantity||1}</div></div>
+      <div class="modal-field"><label>Quantity</label>${editableHTML(item.row_id,'quantity',item.quantity||1,false,'number','')}</div>
       <div class="modal-field"><label>Confidence</label><div class="val">${item.confidence||'<span class="empty">—</span>'}</div></div>
       <div class="modal-field full"><label>Features</label><div class="val">${item.features||'<span class="empty">—</span>'}</div></div>
       <div class="modal-field full"><label>Status Reason</label><div class="val">${item.status_reason||'<span class="empty">—</span>'}</div></div>
