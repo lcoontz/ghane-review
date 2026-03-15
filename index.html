@@ -510,7 +510,7 @@ function cardHTML(item) {
       <span class="row-id">#${item.row_id}</span>
     </div>
     <div class="card-body">
-      <div class="card-title" title="${(item.item||'').replace(/"/g,'&quot;')}" onclick="openModal('${item.row_id}')">${item.item||'Untitled'}</div>
+      <div class="card-title" title="${(item.product_name||item.item||'').replace(/"/g,'&quot;')}" onclick="openModal('${item.row_id}')">${item.product_name||item.item||'Untitled'}</div>
       <div class="card-meta">
         ${item.brand ? `<span>${item.brand}</span>` : ''}
         <span>${item._room||''}</span>
@@ -534,7 +534,7 @@ function rowHTML(item) {
   return `<tr class="${isExcl?'excluded':''}">
     <td style="color:var(--text-muted);font-size:12px;font-variant-numeric:tabular-nums">#${item.row_id}</td>
     <td><div class="thumb-wrap" onclick="openModal('${item.row_id}')">${img ? `<img src="${img}" alt="" loading="lazy">` : ''}</div></td>
-    <td><span class="item-name" onclick="openModal('${item.row_id}')">${item.item||'Untitled'}</span></td>
+    <td><span class="item-name" onclick="openModal('${item.row_id}')">${item.product_name||item.item||'Untitled'}</span></td>
     <td>${item._room||''}</td>
     <td>${item.quantity||1}</td>
     <td style="font-weight:600;${item.price > 0 ? 'color:var(--green)' : 'color:var(--text-muted)'}">${priceStr}</td>
