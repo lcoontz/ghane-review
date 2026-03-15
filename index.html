@@ -171,6 +171,18 @@ table.items-table .item-name:hover{color:#4f46e5}
 .inline-edit:focus{box-shadow:0 0 0 3px rgba(99,102,241,.15)}
 .modal-header .editable{display:inline}
 .modal-header .editable:hover{background:var(--blue-bg)}
+
+/* SEARCH ROW */
+.modal-search-row{display:flex;gap:8px;padding:12px 24px;align-items:center;border-bottom:1px solid var(--border-light)}
+.search-query{flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);outline:none;transition:border .15s}
+.search-query:focus{border-color:#818cf8;box-shadow:0 0 0 3px rgba(99,102,241,.1)}
+.search-btn{padding:8px 14px;border:none;border-radius:var(--radius-sm);font-size:12.5px;font-weight:600;font-family:var(--font);cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:6px;text-decoration:none;white-space:nowrap}
+.shopping-btn{background:#fef3c7;color:#92400e;border:1px solid #fde68a}
+.shopping-btn:hover{background:#fde68a;border-color:#f59e0b}
+.lens-btn{background:#dbeafe;color:#1e40af;border:1px solid #bfdbfe}
+.lens-btn:hover{background:#bfdbfe;border-color:#3b82f6}
+.lens-btn[disabled]{opacity:.4;cursor:default}
+.lens-btn[disabled]:hover{background:#dbeafe;border-color:#bfdbfe}
 </style>
 </head>
 <body>
@@ -388,6 +400,20 @@ function showToast(msg) {
 function getImg(item) { return item.zoom_crop_url || item.cropped_image_url || ''; }
 function formatPrice(p) { return p && p > 0 ? '$' + Number(p).toFixed(2) : '$0'; }
 
+function searchShopping() {
+  const q = document.getElementById('modalSearchQuery').value.trim();
+  if (!q) return;
+  window.open('https://www.google.com/search?tbm=shop&q=' + encodeURIComponent(q), '_blank');
+}
+
+function searchLens(rowId) {
+  const item = ITEMS.find(i => i.row_id === rowId);
+  if (!item) return;
+  const img = getImg(item);
+  if (!img) return;
+  window.open('https://lens.google.com/uploadbyurl?url=' + encodeURIComponent(img), '_blank');
+}
+
 function renderStats() {
   const included = ITEMS.filter(i => decisions[i.row_id] === 'include').length;
   const excluded = ITEMS.filter(i => decisions[i.row_id] === 'exclude').length;
@@ -556,6 +582,7 @@ function openModal(rowId) {
   const cropImg = getImg(item);
   const dec = getDecision(item.row_id);
   const priceStr = formatPrice(item.price);
+  const searchQuery = ((item.item||'') + (item.brand ? ' ' + item.brand : '')).trim();
   const purchaseHTML = item.purchase_link && item.purchase_link.startsWith('http')
     ? `<a href="${item.purchase_link}" target="_blank" onclick="event.stopPropagation()" style="color:var(--blue);text-decoration:none;word-break:break-all">${item.purchase_link}</a>`
     : (item.purchase_link || '');
@@ -574,6 +601,17 @@ function openModal(rowId) {
         ${item.zoom_crop_url ? `<img src="${item.zoom_crop_url}" alt="">` : '<div style="height:200px;display:flex;align-items:center;justify-content:center;color:var(--text-muted)">No zoom crop</div>'}
         <div class="modal-img-label">Zoom Crop</div>
       </div>
+    </div>
+    <div class="modal-search-row">
+      <input type="text" class="search-query" id="modalSearchQuery" value="${searchQuery.replace(/"/g,'&quot;')}" placeholder="Edit search query..." onkeydown="if(event.key==='Enter')searchShopping()">
+      <button class="search-btn shopping-btn" onclick="searchShopping()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        Shopping
+      </button>
+      <button class="search-btn lens-btn" onclick="searchLens('${item.row_id}')" ${cropImg ? '' : 'disabled'}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+        Lens
+      </button>
     </div>
     <div class="modal-grid">
       <div class="modal-field full"><label>Description</label>${editableHTML(item.row_id,'item_description',item.item_description||'',true,'text','')}</div>
