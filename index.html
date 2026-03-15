@@ -284,6 +284,7 @@ function startEdit(el, rowId, field, isTextarea, inputType) {
     if (field === 'price') val = parseFloat(val) || 0;
     if (field === 'quantity') val = parseInt(val) || 1;
     finishEdit(rowId, field, val);
+    if (field === 'product_name') finishEdit(rowId, 'item', val);
     openModal(rowId);
   };
   input.addEventListener('blur', finish);
@@ -582,7 +583,7 @@ function openModal(rowId) {
   const cropImg = getImg(item);
   const dec = getDecision(item.row_id);
   const priceStr = formatPrice(item.price);
-  const searchQuery = (item.product_name || ((item.item||'') + (item.brand ? ' ' + item.brand : ''))).trim();
+  const searchQuery = '';
   const purchaseHTML = item.purchase_link && item.purchase_link.startsWith('http')
     ? `<a href="${item.purchase_link}" target="_blank" onclick="event.stopPropagation()" style="color:var(--blue);text-decoration:none;word-break:break-all">${item.purchase_link}</a>`
     : (item.purchase_link || '');
